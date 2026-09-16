@@ -1,4 +1,5 @@
-import { store, validDate } from "@/lib/store.mjs";
+import { store } from "@/lib/runtime-store.mjs";
+import { validDate } from "@/lib/task-model.mjs";
 import { sameOrigin, failure } from "../store";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -7,7 +8,7 @@ export async function GET(request: Request) {
   if (!validDate(date))
     return Response.json({ error: "Invalid date" }, { status: 400 });
   try {
-    return Response.json(store().getDay(date), {
+    return Response.json(await (await store()).getDay(date), {
       headers: { "Cache-Control": "no-store" },
     });
   } catch (error) {
@@ -26,7 +27,9 @@ export async function POST(request: Request) {
   if (!validDate(date) || typeof id !== "string" || typeof done !== "boolean")
     return new Response(null, { status: 400 });
   try {
-    return Response.json(store().setComplete(date, id, done, prayerMode));
+    return Response.json(
+      await (await store()).setComplete(date, id, done, prayerMode),
+    );
   } catch (error) {
     if (
       error instanceof Error &&

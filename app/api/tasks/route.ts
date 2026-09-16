@@ -1,4 +1,5 @@
-import { store, validDate, validTasks } from "@/lib/store.mjs";
+import { store } from "@/lib/runtime-store.mjs";
+import { validDate, validTasks } from "@/lib/task-model.mjs";
 import { sameOrigin, failure } from "../store";
 export const runtime = "nodejs";
 export async function PUT(request: Request) {
@@ -23,7 +24,7 @@ export async function PUT(request: Request) {
       { status: 400 },
     );
   try {
-    store().configure(date, tasks);
+    await (await store()).configure(date, tasks);
     return Response.json({ saved: true });
   } catch (error) {
     return failure(error);

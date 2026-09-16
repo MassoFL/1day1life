@@ -56,7 +56,12 @@ export default function Home() {
     setLoaded(false);
     try {
       const r = await fetch("/api/day?date=" + day());
-      if (!r.ok) throw Error("Your day could not be loaded. Please try again.");
+      if (!r.ok) {
+        const body = await r.json().catch(() => null);
+        throw Error(
+          body?.error || "Your day could not be loaded. Please try again.",
+        );
+      }
       setTasks(await r.json());
       setError("");
       setLoaded(true);

@@ -6,7 +6,7 @@ A minimal daily intention tracker. Check off tasks, see their individual points,
 
 - **Desktop:** track your day and configure recurring tasks and scores.
 - **Mobile:** tracking only; configuration controls are not rendered.
-- **Persistence:** SQLite on the server, shared by all devices using this private instance.
+- **Persistence:** Supabase PostgreSQL on Vercel; SQLite remains available for local development. Data is shared by devices using the same instance.
 - **Daily reset:** the browser's local date selects a fresh checklist. Earlier days retain their task and score snapshots.
 
 ## Run locally
@@ -30,7 +30,21 @@ npm start
 
 Set `APP_PASSWORD` to a strong password before production startup. The browser login uses username **1day1life** and that password. Serve behind HTTPS. Production requests are blocked when the password is missing; development runs without a password unless configured.
 
-Set `DATABASE_PATH` to a file on a persistent writable volume (default `./data/1day1life.sqlite`). Run one application instance on a Node server or container. Serverless deployments with ephemeral filesystems and GitHub Pages are not supported. GitHub hosts the source; the application requires a running Node server. SQLite is built into Node; some Node versions display an experimental warning.
+### Vercel + Supabase
+
+1. In Supabase **Connect**, select the PostgreSQL **Transaction pooler** connection string (port 6543).
+2. Add it as `DATABASE_URL` in your Vercel project's environment variables for **Production**. Replace the password placeholder with your database password, URL-encoding special characters. Never commit this value or prefix it with `NEXT_PUBLIC_`.
+3. Keep `APP_PASSWORD` configured. Redeploy after changing environment variables.
+
+The server uses TLS with certificate verification and disables prepared statements for transaction-pooler compatibility. On the first request it creates `oneday.intentions` and `oneday.days` in a private schema and seeds the default tasks and five prayers. Use the project's database owner connection so it can create the schema. No manual SQL setup, browser API keys, or Supabase client configuration is required. Table row-level security is enabled; only the server database owner accesses data. Keep the `oneday` schema out of the Supabase Data API exposed schemas.
+
+Vercel will never fall back to local SQLite if `DATABASE_URL` is missing. A failed remote connection also does not fall back. Preview deployments should use a separate Supabase database/project to avoid changing production data.
+
+A newly connected Supabase database starts fresh. Existing local SQLite records are **not automatically copied** to Supabase; retain your local database backup if you have earlier data to migrate.
+
+### Self-hosted / local SQLite
+
+Without `DATABASE_URL`, non-Vercel installations use `DATABASE_PATH` (default `./data/1day1life.sqlite`). This needs a persistent writable volume and one Node server instance. SQLite is not used for storage on Vercel. GitHub Pages cannot run the backend.
 
 Phone and computer must open the same server URL with the same credentials. No task data is stored in browser local storage. The app follows each device's local calendar date; keep devices in the same timezone to track the same day around midnight.
 
@@ -52,8 +66,8 @@ npm run typecheck
 npm run build
 ```
 
-Storage tests cover persistence after reopening the database, undo, daily reset, historical score preservation, empty lists, and input rejection. The app exposes an optional read-only `get_today_tasks` WebMCP tool when the browser supports it.
+PostgreSQL queries are tested using an embedded PostgreSQL engine (PGlite), without production credentials. Storage tests cover persistence after reopening the database, undo, daily reset, historical score preservation, empty lists, and input rejection. The app exposes an optional read-only `get_today_tasks` WebMCP tool when the browser supports it.
 
 ## Stack
 
-Next.js App Router, React, TypeScript, Tailwind CSS, Shadcn primitives, and Node's built-in SQLite. No dependency on Sites or Cloudflare.
+Next.js App Router, React, TypeScript, Tailwind CSS, Shadcn primitives, Postgres.js for Supabase, and Node's built-in SQLite for local development. No dependency on Sites or Cloudflare.
