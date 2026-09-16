@@ -38,7 +38,11 @@ Phone and computer must open the same server URL with the same credentials. No t
 
 Desktop configuration requires a viewport at least 900 pixels wide, a fine pointer, and a non-mobile user agent. Mobile user agents are also rejected by the configuration endpoint. This is an interface restriction, not device attestation: browsers can spoof their device identity.
 
-Saving configuration updates today and future daily checklists while preserving completion for existing task IDs. Earlier daily snapshots are unchanged. Tasks can be added, edited, or removed; scores are integers from 1 to 1,000. Up to 30 daily intentions are supported.
+Saving configuration updates today and future daily checklists while preserving completion for existing task IDs. Earlier daily snapshots are unchanged. Tasks can be added, edited, or removed; scores are integers from 1 to 1,000. Up to 50 daily intentions are supported.
+
+Tasks are grouped by editable categories. Five prayers (Fajr, Dhuhr, Asr, Maghrib, Isha) are included in the Prières category, initially worth 10 points each. Selecting Fi jama3a or Seul completes a prayer; changing modes does not add extra points, and Annuler clears its completion and mode. Prayer modes reset each day. Desktop configuration can edit categories, scores and task types; mobile remains tracking-only.
+
+Existing databases receive a one-time upgrade that adds the prayers and categorizes existing tasks as Général. Existing task scores and completion are preserved; snapshots before the server’s current date remain unchanged. Back up the SQLite database before deploying updates.
 
 ## Checks
 

@@ -16,7 +16,7 @@ export async function PUT(request: Request) {
   } catch {
     return new Response(null, { status: 400 });
   }
-  const { tasks, date } = body;
+  const { tasks, date } = body ?? {};
   if (!validDate(date) || !validTasks(tasks))
     return Response.json(
       { error: "Invalid task configuration" },

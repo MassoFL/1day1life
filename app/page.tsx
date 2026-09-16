@@ -11,21 +11,21 @@ import {
   Trash2,
   Check,
 } from "lucide-react";
-type Task = { id: string; name: string; score: number; done?: boolean };
-const examples: Task[] = [
-  { id: "a", name: "Move your body", score: 20 },
-  { id: "b", name: "Make time for deep work", score: 30 },
-  { id: "c", name: "Read a few pages", score: 15 },
-  { id: "d", name: "Get outside", score: 15 },
-  { id: "e", name: "Connect with someone", score: 10 },
-  { id: "f", name: "Take a moment to reflect", score: 10 },
-];
+type Task = {
+  id: string;
+  name: string;
+  score: number;
+  done?: boolean;
+  category?: string;
+  kind?: "task" | "prayer";
+  prayerMode?: "jamaah" | "alone";
+};
 function day() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 export default function Home() {
-  const [tasks, setTasks] = useState<Task[]>(examples),
+  const [tasks, setTasks] = useState<Task[]>([]),
     [loaded, setLoaded] = useState(false),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false),
@@ -69,18 +69,28 @@ export default function Home() {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- synchronize persisted data with the selected day
     if (date) void load();
   }, [date]);
-  async function toggle(id: string, done: boolean) {
+  async function toggle(
+    id: string,
+    done: boolean,
+    prayerMode?: "jamaah" | "alone",
+  ) {
     if (busy || !loaded) return;
     setBusy(true);
     try {
       const r = await fetch("/api/day", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ date: day(), id, done }),
+        body: JSON.stringify({ date: day(), id, done, prayerMode }),
       });
       if (!r.ok)
         throw Error("That check could not be saved. Please try again.");
-      setTasks((t) => t.map((x) => (x.id === id ? { ...x, done } : x)));
+      setTasks((t) =>
+        t.map((x) =>
+          x.id === id
+            ? { ...x, done, prayerMode: done ? prayerMode : undefined }
+            : x,
+        ),
+      );
       setError("");
     } catch (e) {
       setError((e as Error).message);
@@ -99,7 +109,7 @@ export default function Home() {
       });
       if (!r.ok)
         throw Error(
-          "Please give every task a name and a score from 1 to 1,000.",
+          "Vérifie le nom, la catégorie (40 caractères maximum) et le score (1 à 1 000) de chaque tâche.",
         );
       setEditing(false);
       await load();
@@ -234,6 +244,22 @@ export default function Home() {
                   <span>DAILY TASK</span>
                   <span>POINTS</span>
                 </div>
+                <datalist id="task-categories">
+                  {Array.from(
+                    new Set([
+                      "Prières",
+                      "Santé",
+                      "Travail",
+                      "Apprentissage",
+                      "Relations",
+                      "Bien-être",
+                      "Général",
+                      ...draft.map((t) => t.category || "Général"),
+                    ]),
+                  ).map((c) => (
+                    <option key={c} value={c} />
+                  ))}
+                </datalist>
                 {draft.map((t, i) => (
                   <div className="edit-row" key={t.id}>
                     <input
@@ -248,6 +274,43 @@ export default function Home() {
                         )
                       }
                     />
+                    <input
+                      aria-label={
+                        "Catégorie de " + (t.name || `la tâche ${i + 1}`)
+                      }
+                      placeholder="Catégorie"
+                      list="task-categories"
+                      maxLength={40}
+                      value={t.category || "Général"}
+                      onChange={(e) =>
+                        setDraft((d) =>
+                          d.map((x) =>
+                            x.id === t.id
+                              ? { ...x, category: e.target.value }
+                              : x,
+                          ),
+                        )
+                      }
+                    />
+                    <select
+                      aria-label={"Type de " + (t.name || `la tâche ${i + 1}`)}
+                      value={t.kind || "task"}
+                      onChange={(e) =>
+                        setDraft((d) =>
+                          d.map((x) =>
+                            x.id === t.id
+                              ? {
+                                  ...x,
+                                  kind: e.target.value as "task" | "prayer",
+                                }
+                              : x,
+                          ),
+                        )
+                      }
+                    >
+                      <option value="task">Tâche</option>
+                      <option value="prayer">Prière</option>
+                    </select>
                     <input
                       aria-label={"Points for " + t.name}
                       type="number"
@@ -276,11 +339,17 @@ export default function Home() {
                 ))}
                 <button
                   className="add"
-                  disabled={draft.length >= 30}
+                  disabled={draft.length >= 50}
                   onClick={() =>
                     setDraft((d) => [
                       ...d,
-                      { id: crypto.randomUUID(), name: "", score: 10 },
+                      {
+                        id: crypto.randomUUID(),
+                        name: "",
+                        score: 10,
+                        category: "Général",
+                        kind: "task",
+                      },
                     ])
                   }
                 >
@@ -304,23 +373,106 @@ export default function Home() {
                   <span>POINTS</span>
                 </div>
                 <div className="tasks" aria-busy={!loaded || busy}>
-                  {tasks.map((t) => (
-                    <label
-                      className={"task " + (t.done ? "complete" : "")}
-                      key={t.id}
+                  {Array.from(
+                    new Set(tasks.map((t) => t.category || "Général")),
+                  ).map((category) => (
+                    <section
+                      className="task-category"
+                      key={category}
+                      aria-label={category}
                     >
-                      <Checkbox
-                        checked={!!t.done}
-                        disabled={!loaded || busy}
-                        onCheckedChange={(v) => toggle(t.id, !!v)}
-                        aria-label={t.name}
-                      />
-                      <span className="task-name">{t.name}</span>
-                      <span className="points">
-                        {t.done ? <Check size={13} /> : <span>+</span>}
-                        {t.score}
-                      </span>
-                    </label>
+                      <h3 className="category-heading">
+                        {category}
+                        <span>
+                          {
+                            tasks.filter(
+                              (t) =>
+                                (t.category || "Général") === category &&
+                                t.done,
+                            ).length
+                          }{" "}
+                          /{" "}
+                          {
+                            tasks.filter(
+                              (t) => (t.category || "Général") === category,
+                            ).length
+                          }
+                        </span>
+                      </h3>
+                      {tasks
+                        .filter((t) => (t.category || "Général") === category)
+                        .map((t) =>
+                          t.kind === "prayer" ? (
+                            <div
+                              className={
+                                "prayer-task " + (t.done ? "complete" : "")
+                              }
+                              key={t.id}
+                            >
+                              <div className="prayer-title">
+                                <span className="task-name">{t.name}</span>
+                                <span className="points">
+                                  {t.done ? <Check size={13} /> : "+"}
+                                  {t.score}
+                                </span>
+                              </div>
+                              <div className="prayer-actions">
+                                <div
+                                  className="prayer-modes"
+                                  role="group"
+                                  aria-label={"Accomplir " + t.name}
+                                >
+                                  <button
+                                    disabled={!loaded || busy}
+                                    aria-pressed={
+                                      t.done && t.prayerMode === "jamaah"
+                                    }
+                                    onClick={() => toggle(t.id, true, "jamaah")}
+                                  >
+                                    Fi jama3a
+                                  </button>
+                                  <button
+                                    disabled={!loaded || busy}
+                                    aria-pressed={
+                                      t.done && t.prayerMode === "alone"
+                                    }
+                                    onClick={() => toggle(t.id, true, "alone")}
+                                  >
+                                    Seul
+                                  </button>
+                                </div>
+                                {t.done && (
+                                  <button
+                                    className="undo-prayer"
+                                    disabled={busy}
+                                    aria-label={"Annuler " + t.name}
+                                    onClick={() => toggle(t.id, false)}
+                                  >
+                                    Annuler
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          ) : (
+                            <label
+                              className={"task " + (t.done ? "complete" : "")}
+                              key={t.id}
+                            >
+                              <Checkbox
+                                checked={!!t.done}
+                                disabled={!loaded || busy}
+                                onCheckedChange={(v) => toggle(t.id, !!v)}
+                                aria-label={t.name}
+                              />
+                              <span className="task-name">{t.name}</span>
+                              <span className="points">
+                                {t.done ? <Check size={13} /> : <span>+</span>}
+                                {t.score}
+                              </span>
+                            </label>
+                          ),
+                        )}
+                    </section>
                   ))}
                 </div>
                 {tasks.length === 0 && (
