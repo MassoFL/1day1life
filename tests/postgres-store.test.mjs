@@ -60,11 +60,11 @@ test("PostgreSQL stores prayers and categories and keeps earlier days unchanged"
     assert.equal((await store.getDay("2026-09-17"))[0].prayerMode, undefined);
     await assert.rejects(
       store.setComplete("2026-09-17", "prayer-fajr", true),
-      /Choose a prayer mode/,
+      /Choose a task option/,
     );
     await assert.rejects(
       store.setComplete("2026-09-17", "prayer-fajr", true, "invalid"),
-      /Invalid prayer mode/,
+      /Invalid task option/,
     );
     await assert.rejects(
       store.configure("2026-09-17", [{ id: "bad", name: "Bad", score: -1 }]),

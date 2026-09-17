@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { decodeTasks } from "@/lib/task-model.mjs";
+import { decodeTasks, taskOptions, selectedOption } from "@/lib/task-model.mjs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
 import {
@@ -20,6 +20,8 @@ type Task = {
   category?: string;
   kind?: "task" | "prayer";
   prayerMode?: "jamaah" | "alone";
+  options?: { id: string; label: string }[];
+  selectedOptionId?: string;
 };
 function day() {
   const d = new Date();
@@ -75,25 +77,27 @@ export default function Home() {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- synchronize persisted data with the selected day
     if (date) void load();
   }, [date]);
-  async function toggle(
-    id: string,
-    done: boolean,
-    prayerMode?: "jamaah" | "alone",
-  ) {
+  async function toggle(id: string, done: boolean, optionId?: string) {
     if (busy || !loaded) return;
     setBusy(true);
     try {
       const r = await fetch("/api/day", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ date: day(), id, done, prayerMode }),
+        body: JSON.stringify({ date: day(), id, done, optionId }),
       });
       if (!r.ok)
         throw Error("That check could not be saved. Please try again.");
+      const result = await r.json();
       setTasks((t) =>
         t.map((x) =>
           x.id === id
-            ? { ...x, done, prayerMode: done ? prayerMode : undefined }
+            ? {
+                ...x,
+                done,
+                selectedOptionId: result.selectedOptionId,
+                prayerMode: result.prayerMode,
+              }
             : x,
         ),
       );
@@ -115,7 +119,7 @@ export default function Home() {
       });
       if (!r.ok)
         throw Error(
-          "Vérifie le nom, la catégorie (40 caractères maximum) et le score (1 à 1 000) de chaque tâche.",
+          "Vérifie le nom, le type, le score et les options : chaque option doit avoir un nom différent (40 caractères maximum).",
         );
       setEditing(false);
       await load();
@@ -218,7 +222,7 @@ export default function Home() {
           <section className="task-panel">
             <div className="panel-heading">
               <div>
-                <h2>{editing ? "Shape your day" : "Today’s intentions"}</h2>
+                <h2>{editing ? "Configurer les tâches" : "Tâches du jour"}</h2>
                 <p>
                   {editing
                     ? "Choose the things that make a good day."
@@ -229,13 +233,18 @@ export default function Home() {
                 <button
                   className="configure"
                   onClick={() => {
-                    setDraft(tasks.map((t) => ({ ...t })));
+                    setDraft(
+                      tasks.map((t) => ({
+                        ...t,
+                        options: taskOptions(t).map((o) => ({ ...o })),
+                      })),
+                    );
                     setEditing(!editing);
                     setError("");
                   }}
                 >
                   <Settings2 size={16} />
-                  {editing ? "Back to today" : "Configure"}
+                  {editing ? "Retour" : "Configurer"}
                 </button>
               )}
             </div>
@@ -246,11 +255,12 @@ export default function Home() {
             )}
             {editing ? (
               <>
-                <div className="edit-labels">
-                  <span>DAILY TASK</span>
-                  <span>POINTS</span>
-                </div>
-                <datalist id="task-categories">
+                <p className="edit-note">
+                  Un nom, un type et un score. Ajoute des options seulement si
+                  nécessaire. Une seule option sera choisie par tâche, sans
+                  changer son score.
+                </p>
+                <datalist id="task-types">
                   {Array.from(
                     new Set([
                       "Prières",
@@ -258,7 +268,6 @@ export default function Home() {
                       "Travail",
                       "Apprentissage",
                       "Relations",
-                      "Bien-être",
                       "Général",
                       ...draft.map((t) => t.category || "Général"),
                     ]),
@@ -267,80 +276,139 @@ export default function Home() {
                   ))}
                 </datalist>
                 {draft.map((t, i) => (
-                  <div className="edit-row" key={t.id}>
-                    <input
-                      aria-label={"Task " + (i + 1)}
-                      maxLength={100}
-                      value={t.name}
-                      onChange={(e) =>
-                        setDraft((d) =>
-                          d.map((x) =>
-                            x.id === t.id ? { ...x, name: e.target.value } : x,
-                          ),
-                        )
-                      }
-                    />
-                    <input
-                      aria-label={
-                        "Catégorie de " + (t.name || `la tâche ${i + 1}`)
-                      }
-                      placeholder="Catégorie"
-                      list="task-categories"
-                      maxLength={40}
-                      value={t.category || "Général"}
-                      onChange={(e) =>
-                        setDraft((d) =>
-                          d.map((x) =>
-                            x.id === t.id
-                              ? { ...x, category: e.target.value }
-                              : x,
-                          ),
-                        )
-                      }
-                    />
-                    <select
-                      aria-label={"Type de " + (t.name || `la tâche ${i + 1}`)}
-                      value={t.kind || "task"}
-                      onChange={(e) =>
-                        setDraft((d) =>
-                          d.map((x) =>
-                            x.id === t.id
-                              ? {
-                                  ...x,
-                                  kind: e.target.value as "task" | "prayer",
-                                }
-                              : x,
-                          ),
-                        )
-                      }
-                    >
-                      <option value="task">Tâche</option>
-                      <option value="prayer">Prière</option>
-                    </select>
-                    <input
-                      aria-label={"Points for " + t.name}
-                      type="number"
-                      min="1"
-                      max="1000"
-                      value={t.score}
-                      onChange={(e) =>
-                        setDraft((d) =>
-                          d.map((x) =>
-                            x.id === t.id
-                              ? { ...x, score: Number(e.target.value) }
-                              : x,
-                          ),
-                        )
-                      }
-                    />
-                    <button
-                      aria-label={"Remove " + t.name}
-                      onClick={() =>
-                        setDraft((d) => d.filter((x) => x.id !== t.id))
-                      }
-                    >
-                      <Trash2 size={17} />
-                    </button>
+                  <div className="task-editor" key={t.id}>
+                    <div className="task-fields">
+                      <label>
+                        Nom
+                        <input
+                          aria-label={"Nom de la tâche " + (i + 1)}
+                          maxLength={100}
+                          value={t.name}
+                          onChange={(e) =>
+                            setDraft((d) =>
+                              d.map((x) =>
+                                x.id === t.id
+                                  ? { ...x, name: e.target.value }
+                                  : x,
+                              ),
+                            )
+                          }
+                        />
+                      </label>
+                      <label>
+                        Type
+                        <input
+                          list="task-types"
+                          maxLength={40}
+                          value={t.category || ""}
+                          onChange={(e) =>
+                            setDraft((d) =>
+                              d.map((x) =>
+                                x.id === t.id
+                                  ? { ...x, category: e.target.value }
+                                  : x,
+                              ),
+                            )
+                          }
+                        />
+                      </label>
+                      <label>
+                        Score
+                        <input
+                          type="number"
+                          min="1"
+                          max="1000"
+                          value={t.score}
+                          onChange={(e) =>
+                            setDraft((d) =>
+                              d.map((x) =>
+                                x.id === t.id
+                                  ? { ...x, score: Number(e.target.value) }
+                                  : x,
+                              ),
+                            )
+                          }
+                        />
+                      </label>
+                      <button
+                        aria-label={
+                          "Supprimer " + (t.name || "la tâche " + (i + 1))
+                        }
+                        onClick={() =>
+                          setDraft((d) => d.filter((x) => x.id !== t.id))
+                        }
+                      >
+                        <Trash2 size={17} />
+                      </button>
+                    </div>
+                    <div className="option-editor">
+                      {taskOptions(t).map((o) => (
+                        <div className="option-input" key={o.id}>
+                          <input
+                            aria-label={"Option de " + t.name}
+                            placeholder="Nom de l’option"
+                            maxLength={40}
+                            value={o.label}
+                            onChange={(e) =>
+                              setDraft((d) =>
+                                d.map((x) =>
+                                  x.id === t.id
+                                    ? {
+                                        ...x,
+                                        options: taskOptions(x).map((v) =>
+                                          v.id === o.id
+                                            ? { ...v, label: e.target.value }
+                                            : v,
+                                        ),
+                                      }
+                                    : x,
+                                ),
+                              )
+                            }
+                          />
+                          <button
+                            aria-label={"Supprimer l’option " + o.label}
+                            onClick={() =>
+                              setDraft((d) =>
+                                d.map((x) =>
+                                  x.id === t.id
+                                    ? {
+                                        ...x,
+                                        options: taskOptions(x).filter(
+                                          (v) => v.id !== o.id,
+                                        ),
+                                      }
+                                    : x,
+                                ),
+                              )
+                            }
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        className="add-option"
+                        disabled={taskOptions(t).length >= 10}
+                        onClick={() =>
+                          setDraft((d) =>
+                            d.map((x) =>
+                              x.id === t.id
+                                ? {
+                                    ...x,
+                                    options: [
+                                      ...taskOptions(x),
+                                      { id: crypto.randomUUID(), label: "" },
+                                    ],
+                                  }
+                                : x,
+                            ),
+                          )
+                        }
+                      >
+                        <Plus size={14} /> Ajouter une option
+                      </button>
+                    </div>
                   </div>
                 ))}
                 <button
@@ -355,20 +423,21 @@ export default function Home() {
                         score: 10,
                         category: "Général",
                         kind: "task",
+                        options: [],
                       },
                     ])
                   }
                 >
-                  <Plus size={17} /> Add an intention
+                  <Plus size={17} /> Ajouter une tâche
                 </button>
                 <p className="edit-note">
                   Changes apply to today and future days. Previous days keep
                   their original scores.
                 </p>
                 <div className="edit-actions">
-                  <button onClick={() => setEditing(false)}>Cancel</button>
+                  <button onClick={() => setEditing(false)}>Annuler</button>
                   <button className="primary" onClick={save} disabled={busy}>
-                    Save intentions
+                    Enregistrer
                   </button>
                 </div>
               </>
@@ -408,7 +477,7 @@ export default function Home() {
                       {tasks
                         .filter((t) => (t.category || "Général") === category)
                         .map((t) =>
-                          t.kind === "prayer" ? (
+                          taskOptions(t).length > 0 ? (
                             <div
                               className={
                                 "prayer-task " + (t.done ? "complete" : "")
@@ -428,24 +497,18 @@ export default function Home() {
                                   role="group"
                                   aria-label={"Accomplir " + t.name}
                                 >
-                                  <button
-                                    disabled={!loaded || busy}
-                                    aria-pressed={
-                                      t.done && t.prayerMode === "jamaah"
-                                    }
-                                    onClick={() => toggle(t.id, true, "jamaah")}
-                                  >
-                                    Fi jama3a
-                                  </button>
-                                  <button
-                                    disabled={!loaded || busy}
-                                    aria-pressed={
-                                      t.done && t.prayerMode === "alone"
-                                    }
-                                    onClick={() => toggle(t.id, true, "alone")}
-                                  >
-                                    Seul
-                                  </button>
+                                  {taskOptions(t).map((o) => (
+                                    <button
+                                      key={o.id}
+                                      disabled={!loaded || busy}
+                                      aria-pressed={
+                                        !!t.done && selectedOption(t) === o.id
+                                      }
+                                      onClick={() => toggle(t.id, true, o.id)}
+                                    >
+                                      {o.label}
+                                    </button>
+                                  ))}
                                 </div>
                                 {t.done && (
                                   <button
