@@ -8,6 +8,7 @@ A minimal daily intention tracker. Check off tasks, see their individual points,
 - **Mobile:** minimalist task bars with options revealed on demand. Completed tasks turn green and move into Done; unchecking returns them to the list. The background gradually becomes greener as earned points approach the maximum. Tracking only; configuration stays on desktop.
 - **Persistence:** Supabase PostgreSQL on Vercel; SQLite remains available for local development. Data is shared by devices using the same instance.
 - **Daily reset:** the browser's local date selects a fresh checklist. Earlier days retain their task and score snapshots.
+- **Journal:** one text entry per date, available on mobile and desktop. Save with Enregistrer; use the journal date picker to read or edit earlier entries. Journal storage is added automatically to existing SQLite and Supabase databases without changing tasks or scores.
 
 ## Run locally
 

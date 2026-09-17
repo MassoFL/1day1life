@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import MobileTracker from "./mobile-tracker";
+import { Journal, useJournal } from "./journal";
 import {
   decodeTasks,
   taskOptions,
@@ -44,6 +45,7 @@ export default function Home() {
     [draft, setDraft] = useState<Task[]>([]),
     [desktop, setDesktop] = useState(false),
     [date, setDate] = useState("");
+  const journal = useJournal(date);
   // Hydrate browser-local date and device capability after server rendering.
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- browser-local date must hydrate after SSR
@@ -183,6 +185,7 @@ export default function Home() {
   return (
     <>
       <MobileTracker
+        journal={<Journal journal={journal} />}
         tasks={tasks}
         loaded={loaded}
         busy={busy}
@@ -688,6 +691,7 @@ export default function Home() {
               </div>
             </aside>
           </div>
+          <Journal journal={journal} />
           <footer>
             <span>1 day. 1 life. A fresh start, every morning.</span>
             <span className="desktop-foot">Designed with intention</span>

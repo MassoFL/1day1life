@@ -999,3 +999,77 @@ footer {
     transition: none !important;
   }
 }
+
+.daily-journal {
+  margin-top: 32px;
+  color: #133b2a;
+}
+.journal-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.journal-heading h2 {
+  font-size: 17px;
+  font-weight: 600;
+  margin: 0;
+}
+.journal-heading input {
+  min-width: 0;
+  max-width: 165px;
+  min-height: 44px;
+  font: inherit;
+  font-size: 14px;
+  background: transparent;
+  border: 1px solid #a5bcae;
+  border-radius: 6px;
+  padding: 6px;
+}
+.daily-journal textarea {
+  display: block;
+  width: 100%;
+  resize: vertical;
+  min-height: 150px;
+  padding: 14px;
+  font: inherit;
+  font-size: 16px;
+  line-height: 1.6;
+  background: rgb(255 255 255 / 76%);
+  border: 1px solid rgb(32 77 49 / 20%);
+  border-radius: 9px;
+}
+.daily-journal textarea:focus-visible {
+  outline: 2px solid #247346;
+  outline-offset: 2px;
+}
+.journal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 10px;
+  font-size: 12px;
+}
+.journal-actions button,
+.journal-error button {
+  min-height: 44px;
+  padding: 8px 14px;
+  border-radius: 6px;
+  background: #235c3a;
+  color: white;
+  font-size: 14px;
+}
+.journal-actions button:disabled {
+  opacity: 0.5;
+}
+.journal-error {
+  color: #80321f;
+  font-size: 14px;
+  margin-top: 10px;
+}
+.journal-error button {
+  display: block;
+  margin-top: 8px;
+}

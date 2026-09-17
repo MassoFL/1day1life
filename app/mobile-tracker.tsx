@@ -1,5 +1,11 @@
 "use client";
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+  type CSSProperties,
+} from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   taskOptions,
@@ -21,6 +27,7 @@ type Task = {
   options?: { id: string; label: string; score?: number }[];
 };
 type Props = {
+  journal: ReactNode;
   tasks: Task[];
   loaded: boolean;
   busy: boolean;
@@ -34,6 +41,7 @@ type Props = {
   ) => Promise<boolean | undefined>;
 };
 export default function MobileTracker({
+  journal,
   tasks,
   loaded,
   busy,
@@ -239,6 +247,7 @@ export default function MobileTracker({
             </p>
           )}
         </section>
+        {journal}
         <span className="sr-only" role="status">
           {tasks.filter((t) => t.done).length} tâches terminées. {earned} points
           sur {total}.
