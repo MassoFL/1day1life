@@ -34,7 +34,8 @@ Set `APP_PASSWORD` to a strong password before production startup. The browser l
 
 1. In Supabase **Connect**, select the PostgreSQL **Transaction pooler** connection string (port 6543).
 2. Add it as `DATABASE_URL` in your Vercel project's environment variables for **Production**. Replace the password placeholder with your database password, URL-encoding special characters. Never commit this value or prefix it with `NEXT_PUBLIC_`.
-3. Keep `APP_PASSWORD` configured. Redeploy after changing environment variables.
+3. In Supabase **Database Settings → SSL Configuration**, download the CA certificate. In Vercel add `DATABASE_CA_CERT` containing the complete PEM text, including `-----BEGIN CERTIFICATE-----` and `-----END CERTIFICATE-----`. Paste actual line breaks or literal `\n` separators, without surrounding quotes. This supplies the trusted CA when the runtime does not already trust Supabase’s certificate chain.
+4. Keep `APP_PASSWORD` configured. Redeploy after changing environment variables.
 
 The server uses TLS with certificate verification and disables prepared statements for transaction-pooler compatibility. On the first request it creates `oneday.intentions` and `oneday.days` in a private schema and seeds the default tasks and five prayers. Use the project's database owner connection so it can create the schema. No manual SQL setup, browser API keys, or Supabase client configuration is required. Table row-level security is enabled; only the server database owner accesses data. Keep the `oneday` schema out of the Supabase Data API exposed schemas.
 

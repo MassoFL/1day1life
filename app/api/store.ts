@@ -9,8 +9,13 @@ export function failure(error: unknown) {
   });
   return Response.json(
     {
-      error:
-        code === "DATABASE_CONFIG"
+      error: [
+        "DATABASE_CA_CONFIG",
+        "SELF_SIGNED_CERT_IN_CHAIN",
+        "UNABLE_TO_VERIFY_LEAF_SIGNATURE",
+      ].includes(code)
+        ? "Le certificat de la base n’est pas reconnu. Configure DATABASE_CA_CERT avec le certificat CA téléchargé dans Supabase, puis redéploie."
+        : code === "DATABASE_CONFIG"
           ? "La base de données n’est pas configurée. Ajoute DATABASE_URL dans Vercel puis redéploie."
           : "Impossible de charger ou sauvegarder ta journée. Réessaie dans un instant.",
     },
