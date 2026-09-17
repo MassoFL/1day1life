@@ -105,3 +105,75 @@ for (const backend of ["sqlite", "postgres"]) {
     }
   });
 }
+
+for (const backend of ["sqlite", "postgres"]) {
+  test(`${backend}: option scores persist, switch without accumulation, and keep historical points`, async () => {
+    const { earnedScore, maximumScore } = await import("../lib/task-model.mjs");
+    const db = backend === "postgres" ? new PGlite() : null;
+    const store = db
+      ? createPostgresStore({
+          begin: (fn) =>
+            db.transaction((tx) =>
+              fn({ unsafe: async (q, a = []) => (await tx.query(q, a)).rows }),
+            ),
+          end: () => db.close(),
+        })
+      : createStore(":memory:");
+    try {
+      const task = {
+        id: "test",
+        name: "Test",
+        score: 10,
+        options: [
+          { id: "a", label: "A", score: 30 },
+          { id: "b", label: "B", score: 5 },
+          { id: "c", label: "C", score: 0 },
+        ],
+      };
+      await store.configure("2026-09-17", [task]);
+      let t = (await store.getDay("2026-09-17"))[0];
+      assert.equal(maximumScore(t), 30);
+      assert.equal(earnedScore(t), 0);
+      for (const [id, points] of [
+        ["a", 30],
+        ["b", 5],
+        ["c", 0],
+      ]) {
+        await store.setComplete("2026-09-17", "test", true, id);
+        t = (await store.getDay("2026-09-17"))[0];
+        assert.equal(earnedScore(t), points);
+        assert.equal(t.done, true);
+      }
+      await store.setComplete("2026-09-17", "test", true, "a");
+      await store.configure("2026-09-18", [
+        { ...task, options: [{ id: "a", label: "A", score: 60 }] },
+      ]);
+      assert.equal(earnedScore((await store.getDay("2026-09-17"))[0]), 30);
+      assert.equal(maximumScore((await store.getDay("2026-09-18"))[0]), 60);
+      assert.equal(earnedScore((await store.getDay("2026-09-18"))[0]), 0);
+      await store.setComplete("2026-09-17", "test", false);
+      assert.equal(earnedScore((await store.getDay("2026-09-17"))[0]), 0);
+      for (const score of [-1, 1001, 1.5, "20"])
+        await assert.rejects(async () =>
+          store.configure("2026-09-18", [
+            { ...task, options: [{ id: "a", label: "A", score }] },
+          ]),
+        );
+      assert.equal(
+        earnedScore({
+          kind: "prayer",
+          score: 10,
+          done: true,
+          prayerMode: "jamaah",
+        }),
+        10,
+      );
+      assert.equal(
+        maximumScore({ ...task, options: [{ id: "a", label: "A", score: 0 }] }),
+        0,
+      );
+    } finally {
+      await store.close();
+    }
+  });
+}

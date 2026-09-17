@@ -1,7 +1,14 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { decodeTasks, taskOptions, selectedOption } from "@/lib/task-model.mjs";
+import {
+  decodeTasks,
+  taskOptions,
+  selectedOption,
+  optionScore,
+  maximumScore,
+  earnedScore,
+} from "@/lib/task-model.mjs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
 import {
@@ -20,7 +27,7 @@ type Task = {
   category?: string;
   kind?: "task" | "prayer";
   prayerMode?: "jamaah" | "alone";
-  options?: { id: string; label: string }[];
+  options?: { id: string; label: string; score?: number }[];
   selectedOptionId?: string;
 };
 function day() {
@@ -166,8 +173,8 @@ export default function Home() {
     } catch {}
     return () => lifecycle.abort();
   }, []);
-  const total = tasks.reduce((a, t) => a + t.score, 0),
-    earned = tasks.reduce((a, t) => a + (t.done ? t.score : 0), 0),
+  const total = tasks.reduce((a, t) => a + maximumScore(t), 0),
+    earned = tasks.reduce((a, t) => a + earnedScore(t), 0),
     count = tasks.filter((t) => t.done).length,
     percent = total ? (earned / total) * 100 : 0;
   return (
@@ -236,7 +243,10 @@ export default function Home() {
                     setDraft(
                       tasks.map((t) => ({
                         ...t,
-                        options: taskOptions(t).map((o) => ({ ...o })),
+                        options: taskOptions(t).map((o) => ({
+                          ...o,
+                          score: optionScore(t, o),
+                        })),
                       })),
                     );
                     setEditing(!editing);
@@ -257,8 +267,8 @@ export default function Home() {
               <>
                 <p className="edit-note">
                   Un nom, un type et un score. Ajoute des options seulement si
-                  nécessaire. Une seule option sera choisie par tâche, sans
-                  changer son score.
+                  nécessaire. Chaque option a son score : seule l’option choisie
+                  rapporte des points.
                 </p>
                 <datalist id="task-types">
                   {Array.from(
@@ -312,24 +322,30 @@ export default function Home() {
                           }
                         />
                       </label>
-                      <label>
-                        Score
-                        <input
-                          type="number"
-                          min="1"
-                          max="1000"
-                          value={t.score}
-                          onChange={(e) =>
-                            setDraft((d) =>
-                              d.map((x) =>
-                                x.id === t.id
-                                  ? { ...x, score: Number(e.target.value) }
-                                  : x,
-                              ),
-                            )
-                          }
-                        />
-                      </label>
+                      {taskOptions(t).length ? (
+                        <span className="option-score-note">
+                          Score par option ↓
+                        </span>
+                      ) : (
+                        <label>
+                          Score
+                          <input
+                            type="number"
+                            min="1"
+                            max="1000"
+                            value={t.score}
+                            onChange={(e) =>
+                              setDraft((d) =>
+                                d.map((x) =>
+                                  x.id === t.id
+                                    ? { ...x, score: Number(e.target.value) }
+                                    : x,
+                                ),
+                              )
+                            }
+                          />
+                        </label>
+                      )}
                       <button
                         aria-label={
                           "Supprimer " + (t.name || "la tâche " + (i + 1))
@@ -366,6 +382,40 @@ export default function Home() {
                               )
                             }
                           />
+                          <label className="option-score-field">
+                            Points
+                            <input
+                              type="number"
+                              min="0"
+                              max="1000"
+                              aria-label={
+                                "Score de " +
+                                (o.label || "l’option") +
+                                " — " +
+                                t.name
+                              }
+                              value={optionScore(t, o)}
+                              onChange={(e) =>
+                                setDraft((d) =>
+                                  d.map((x) =>
+                                    x.id === t.id
+                                      ? {
+                                          ...x,
+                                          options: taskOptions(x).map((v) =>
+                                            v.id === o.id
+                                              ? {
+                                                  ...v,
+                                                  score: Number(e.target.value),
+                                                }
+                                              : v,
+                                          ),
+                                        }
+                                      : x,
+                                  ),
+                                )
+                              }
+                            />
+                          </label>
                           <button
                             aria-label={"Supprimer l’option " + o.label}
                             onClick={() =>
@@ -398,7 +448,11 @@ export default function Home() {
                                     ...x,
                                     options: [
                                       ...taskOptions(x),
-                                      { id: crypto.randomUUID(), label: "" },
+                                      {
+                                        id: crypto.randomUUID(),
+                                        label: "",
+                                        score: x.score,
+                                      },
                                     ],
                                   }
                                 : x,
@@ -487,8 +541,8 @@ export default function Home() {
                               <div className="prayer-title">
                                 <span className="task-name">{t.name}</span>
                                 <span className="points">
-                                  {t.done ? <Check size={13} /> : "+"}
-                                  {t.score}
+                                  {t.done ? <Check size={13} /> : "max."}
+                                  {t.done ? earnedScore(t) : maximumScore(t)}
                                 </span>
                               </div>
                               <div className="prayer-actions">
@@ -506,7 +560,7 @@ export default function Home() {
                                       }
                                       onClick={() => toggle(t.id, true, o.id)}
                                     >
-                                      {o.label}
+                                      {o.label} · {optionScore(t, o)} pts
                                     </button>
                                   ))}
                                 </div>
@@ -576,7 +630,7 @@ export default function Home() {
               </div>
               <Progress value={percent} className="score-progress" />
               <div className="score-caption">
-                <span>{Math.round(percent)}% of your daily intention</span>
+                <span>{Math.round(percent)}% du score maximum</span>
                 <span>
                   {count === tasks.length && tasks.length
                     ? "Complete"

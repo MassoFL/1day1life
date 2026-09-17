@@ -732,3 +732,25 @@ footer {
 .prayer-modes button {
   overflow-wrap: anywhere;
 }
+.option-input {
+  max-width: none;
+  width: 100%;
+  align-items: end;
+}
+.option-input > input {
+  flex: 1;
+}
+.option-score-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: #597064;
+  width: 85px;
+  flex-shrink: 0;
+}
+.option-score-note {
+  font-size: 12px;
+  color: #597064;
+  align-self: center;
+}
