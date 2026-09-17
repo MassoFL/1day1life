@@ -103,3 +103,43 @@ test("a failed initialization can retry instead of poisoning the instance", asyn
     await store.close();
   }
 });
+
+test("repairs double-encoded JSONB without losing tasks, scores or prayer completion", async () => {
+  const db = new PGlite();
+  const store = createPostgresStore(driver(db));
+  try {
+    const tasks = await store.getDay("2026-09-17");
+    tasks[0].score = 57;
+    tasks[0].done = true;
+    const prayer = tasks.find((t) => t.id === "prayer-fajr");
+    prayer.done = true;
+    prayer.prayerMode = "jamaah";
+    await db.query("UPDATE oneday.days SET tasks=$1::jsonb WHERE date=$2", [
+      JSON.stringify(JSON.stringify(tasks)),
+      "2026-09-17",
+    ]);
+    const template = tasks.map((t) => {
+      const copy = { ...t };
+      delete copy.done;
+      delete copy.prayerMode;
+      return copy;
+    });
+    await db.query("UPDATE oneday.intentions SET tasks=$1::jsonb WHERE id=1", [
+      JSON.stringify(JSON.stringify(template)),
+    ]);
+    assert.deepEqual(await store.getDay("2026-09-17"), tasks);
+    assert.deepEqual(await store.getDay("2026-09-18"), template);
+    await store.setComplete("2026-09-17", "prayer-fajr", true, "alone");
+    assert.equal(
+      (await store.getDay("2026-09-17")).find((t) => t.id === "prayer-fajr")
+        .prayerMode,
+      "alone",
+    );
+    const result = await db.query(
+      "SELECT jsonb_typeof(tasks) AS kind FROM oneday.days UNION ALL SELECT jsonb_typeof(tasks) FROM oneday.intentions",
+    );
+    assert.ok(result.rows.every((row) => row.kind === "array"));
+  } finally {
+    await store.close();
+  }
+});

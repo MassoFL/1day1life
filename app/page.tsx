@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { decodeTasks } from "@/lib/task-model.mjs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
 import {
@@ -62,7 +63,7 @@ export default function Home() {
           body?.error || "Your day could not be loaded. Please try again.",
         );
       }
-      setTasks(await r.json());
+      setTasks(decodeTasks(await r.json()));
       setError("");
       setLoaded(true);
     } catch (e) {
